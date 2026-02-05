@@ -87,13 +87,13 @@ const projectsSlice = createSlice({
         state.projects.push(action.payload)
       })
       .addCase(updateProject.fulfilled, (state, action) => {
-        const index = state.projects.findIndex((p) => p._id === action.payload._id)
+        const index = state.projects.findIndex((p) => p.id === action.payload.id)
         if (index !== -1) {
           state.projects[index] = action.payload
         }
       })
       .addCase(deleteProject.fulfilled, (state, action) => {
-        state.projects = state.projects.filter((p) => p._id !== action.payload)
+        state.projects = state.projects.filter((p) => p.id !== action.payload)
       })
   },
 })

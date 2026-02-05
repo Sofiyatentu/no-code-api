@@ -93,7 +93,7 @@ export default function Dashboard() {
 
   // DELETE PROJECT
   const openDeleteModal = (project) => {
-    setDeleteModal({ id: project._id, name: project.name })
+    setDeleteModal({ id: project.id, name: project.name })
     setConfirmText("")
   }
 
@@ -198,7 +198,7 @@ export default function Dashboard() {
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {filteredProjects.map((project) => (
               <div
-                key={project._id}
+                key={project.id}
                 class="group relative p-7 rounded-2xl border border-slate-800 bg-slate-900 hover:border-emerald-600 hover:shadow-2xl hover:shadow-emerald-900/30 transition-all duration-300"
               >
                 {/* Delete Button */}
@@ -230,19 +230,19 @@ export default function Dashboard() {
                     {project.status || "draft"}
                   </span>
                   <span class="text-xs text-slate-500">
-                    {new Date(project.createdAt).toLocaleDateString()}
+                    {new Date(project.created_at).toLocaleDateString()}
                   </span>
                 </div>
 
                 <div class="flex gap-3">
                   <Link
-                    to={`/project/${project._id}/builder`}
+                    to={`/project/${project.id}/builder`}
                     class="flex-1 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-center font-semibold transition"
                   >
                     Builder
                   </Link>
                   <Link
-                    to={`/project/${project._id}/playground`}
+                    to={`/project/${project.id}/playground`}
                     class="flex-1 py-3 rounded-lg border border-emerald-600 text-emerald-400 hover:bg-emerald-950 text-center font-semibold transition"
                   >
                     Test

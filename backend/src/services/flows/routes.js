@@ -1,6 +1,5 @@
 import express from "express"
-import { Flow } from "./models.js"
-import { Project } from "../projects/models.js"
+import { query } from "../../config/db.js"
 import { authenticate, asyncHandler } from "../../middleware/auth.js"
 import { publishEvent } from "../../queue/eventBus.js"
 
@@ -11,17 +10,20 @@ router.get(
   "/project/:projectId",
   authenticate,
   asyncHandler(async (req, res) => {
-    const project = await Project.findOne({
-      _id: req.params.projectId,
-      userId: req.userId,
-    })
+    const projectResult = await query(
+      "SELECT id FROM projects WHERE id = $1 AND user_id = $2",
+      [req.params.projectId, req.userId]
+    )
 
-    if (!project) {
+    if (projectResult.rows.length === 0) {
       return res.status(404).json({ error: "Project not found" })
     }
 
-    const flows = await Flow.find({ projectId: req.params.projectId })
-    res.json(flows)
+    const flowsResult = await query(
+      "SELECT * FROM flows WHERE project_id = $1 ORDER BY created_at DESC",
+      [req.params.projectId]
+    )
+    res.json(flowsResult.rows)
   }),
 )
 
@@ -32,26 +34,22 @@ router.post(
   asyncHandler(async (req, res) => {
     const { name, description } = req.body
 
-    const project = await Project.findOne({
-      _id: req.params.projectId,
-      userId: req.userId,
-    })
+    const projectResult = await query(
+      "SELECT id FROM projects WHERE id = $1 AND user_id = $2",
+      [req.params.projectId, req.userId]
+    )
 
-    if (!project) {
+    if (projectResult.rows.length === 0) {
       return res.status(404).json({ error: "Project not found" })
     }
 
-    const flow = new Flow({
-      projectId: req.params.projectId,
-      userId: req.userId,
-      name,
-      description,
-      nodes: [],
-      edges: [],
-    })
+    const flowResult = await query(
+      `INSERT INTO flows (project_id, user_id, name, description, nodes, edges) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.params.projectId, req.userId, name, description || null, JSON.stringify([]), JSON.stringify([])]
+    )
 
-    await flow.save()
-    res.status(201).json(flow)
+    res.status(201).json(flowResult.rows[0])
   }),
 )
 
@@ -60,16 +58,16 @@ router.get(
   "/:flowId",
   authenticate,
   asyncHandler(async (req, res) => {
-    const flow = await Flow.findOne({
-      _id: req.params.flowId,
-      userId: req.userId,
-    })
+    const flowResult = await query(
+      "SELECT * FROM flows WHERE id = $1 AND user_id = $2",
+      [req.params.flowId, req.userId]
+    )
 
-    if (!flow) {
+    if (flowResult.rows.length === 0) {
       return res.status(404).json({ error: "Flow not found" })
     }
 
-    res.json(flow)
+    res.json(flowResult.rows[0])
   }),
 )
 
@@ -80,27 +78,35 @@ router.patch(
   asyncHandler(async (req, res) => {
     const { name, description, nodes, edges } = req.body
 
-    const flow = await Flow.findOneAndUpdate(
-      { _id: req.params.flowId, userId: req.userId },
-      {
-        name,
-        description,
-        nodes: nodes || [],
-        edges: edges || [],
-        updatedAt: new Date(),
-        version: (await Flow.findById(req.params.flowId)).version + 1,
-      },
-      { new: true },
+    const flowResult = await query(
+      `UPDATE flows 
+       SET name = COALESCE($1, name), 
+           description = COALESCE($2, description),
+           nodes = COALESCE($3, nodes),
+           edges = COALESCE($4, edges),
+           version = version + 1
+       WHERE id = $5 AND user_id = $6 
+       RETURNING *`,
+      [
+        name || null, 
+        description || null, 
+        nodes ? JSON.stringify(nodes) : null,
+        edges ? JSON.stringify(edges) : null,
+        req.params.flowId, 
+        req.userId
+      ]
     )
 
-    if (!flow) {
+    if (flowResult.rows.length === 0) {
       return res.status(404).json({ error: "Flow not found" })
     }
 
+    const flow = flowResult.rows[0]
+
     // Publish event for potential deployment
     await publishEvent("FLOW_UPDATED", {
-      flowId: flow._id,
-      projectId: flow.projectId,
+      flowId: flow.id,
+      projectId: flow.project_id,
       version: flow.version,
     })
 
@@ -113,23 +119,24 @@ router.post(
   "/:flowId/deploy",
   authenticate,
   asyncHandler(async (req, res) => {
-    const flow = await Flow.findOneAndUpdate(
-      { _id: req.params.flowId, userId: req.userId },
-      {
-        deployed: true,
-        deployedAt: new Date(),
-      },
-      { new: true },
+    const flowResult = await query(
+      `UPDATE flows 
+       SET deployed = true, deployed_at = CURRENT_TIMESTAMP 
+       WHERE id = $1 AND user_id = $2 
+       RETURNING *`,
+      [req.params.flowId, req.userId]
     )
 
-    if (!flow) {
+    if (flowResult.rows.length === 0) {
       return res.status(404).json({ error: "Flow not found" })
     }
 
+    const flow = flowResult.rows[0]
+
     // Publish deployment event
     await publishEvent("FLOW_DEPLOYED", {
-      flowId: flow._id,
-      projectId: flow.projectId,
+      flowId: flow.id,
+      projectId: flow.project_id,
       version: flow.version,
     })
 
@@ -142,12 +149,12 @@ router.delete(
   "/:flowId",
   authenticate,
   asyncHandler(async (req, res) => {
-    const flow = await Flow.findOneAndDelete({
-      _id: req.params.flowId,
-      userId: req.userId,
-    })
+    const result = await query(
+      "DELETE FROM flows WHERE id = $1 AND user_id = $2 RETURNING id",
+      [req.params.flowId, req.userId]
+    )
 
-    if (!flow) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: "Flow not found" })
     }
 

@@ -108,59 +108,59 @@ export default function FlowEditor({ flow }) {
 
   const canUndo = useSelector(selectCanUndo)
   const canRedo = useSelector(selectCanRedo)
-  const snapshot = useSelector((state) => selectSnapshot(state, flow._id))
+  const snapshot = useSelector((state) => selectSnapshot(state, flow.id))
   const currentHistory = useSelector(selectCurrentHistory)
-  const prevFlowIdRef = useRef(flow._id)
+  const prevFlowIdRef = useRef(flow.id)
 
   useEffect(() => {
     // Save current state to previous flow's snapshot before switching
-    if (prevFlowIdRef.current !== flow._id && prevFlowIdRef.current) {
+    if (prevFlowIdRef.current !== flow.id && prevFlowIdRef.current) {
       dispatch(saveSnapshot({ flowId: prevFlowIdRef.current, nodes, edges }))
     }
-    prevFlowIdRef.current = flow._id
+    prevFlowIdRef.current = flow.id
 
     // Load snapshot for new flow
-    dispatch(loadSnapshot({ flowId: flow._id }))
-  }, [flow._id, dispatch])
+    dispatch(loadSnapshot({ flowId: flow.id }))
+  }, [flow.id, dispatch])
 
   useEffect(() => {
     if (snapshot && snapshot.nodes && snapshot.edges) {
       setNodes(snapshot.nodes)
       setEdges(snapshot.edges)
-      dispatch(pushHistory({ flowId: flow._id, nodes: snapshot.nodes, edges: snapshot.edges }))
+      dispatch(pushHistory({ flowId: flow.id, nodes: snapshot.nodes, edges: snapshot.edges }))
     } else if (flow.nodes || flow.edges) {
       // If no snapshot, use flow data from backend
       setNodes(flow.nodes || [])
       setEdges(flow.edges || [])
-      dispatch(pushHistory({ flowId: flow._id, nodes: flow.nodes || [], edges: flow.edges || [] }))
+      dispatch(pushHistory({ flowId: flow.id, nodes: flow.nodes || [], edges: flow.edges || [] }))
     }
-  }, [snapshot, flow.nodes, flow.edges, flow._id, dispatch, setNodes, setEdges])
+  }, [snapshot, flow.nodes, flow.edges, flow.id, dispatch, setNodes, setEdges])
 
   useEffect(() => {
-    if (currentHistory && currentHistory.flowId === flow._id) {
+    if (currentHistory && currentHistory.flowId === flow.id) {
       setNodes(currentHistory.nodes)
       setEdges(currentHistory.edges)
     }
-  }, [currentHistory, flow._id])
+  }, [currentHistory, flow.id])
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (nodes.length > 0 || edges.length > 0) {
-        dispatch(saveSnapshot({ flowId: flow._id, nodes, edges }))
+        dispatch(saveSnapshot({ flowId: flow.id, nodes, edges }))
       }
     }, 1000)
 
     return () => clearTimeout(timer)
-  }, [nodes, edges, flow._id, dispatch])
+  }, [nodes, edges, flow.id, dispatch])
 
   const onConnect = useCallback(
     (connection) => {
       const newEdges = addEdge(connection, edges)
       setEdges(newEdges)
 
-      dispatch(pushHistory({ flowId: flow._id, nodes, edges: newEdges }))
+      dispatch(pushHistory({ flowId: flow.id, nodes, edges: newEdges }))
     },
-    [dispatch, edges, nodes, flow._id, setEdges],
+    [dispatch, edges, nodes, flow.id, setEdges],
   )
 
   const onNodesDelete = useCallback(
@@ -169,9 +169,9 @@ export default function FlowEditor({ flow }) {
       const newEdges = edges.filter(e => !deletedNodes.some(dn => dn.id === e.source || dn.id === e.target))
       setNodes(newNodes)
       setEdges(newEdges)
-      dispatch(pushHistory({ flowId: flow._id, nodes: newNodes, edges: newEdges }))
+      dispatch(pushHistory({ flowId: flow.id, nodes: newNodes, edges: newEdges }))
     },
-    [nodes, edges, dispatch, flow._id, setNodes, setEdges],
+    [nodes, edges, dispatch, flow.id, setNodes, setEdges],
   )
 
   const onDragOver = useCallback((event) => {
@@ -208,9 +208,9 @@ export default function FlowEditor({ flow }) {
       const newNodes = [...nodes, newNode]
       setNodes(newNodes)
 
-      dispatch(pushHistory({ flowId: flow._id, nodes: newNodes, edges }))
+      dispatch(pushHistory({ flowId: flow.id, nodes: newNodes, edges }))
     },
-    [dispatch, nodes, edges, flow._id, setNodes, screenToFlowPosition],
+    [dispatch, nodes, edges, flow.id, setNodes, screenToFlowPosition],
   )
 
   const handleAddNode = useCallback(
@@ -233,11 +233,11 @@ export default function FlowEditor({ flow }) {
       const newNodes = [...nodes, newNode]
       setNodes(newNodes)
 
-      dispatch(pushHistory({ flowId: flow._id, nodes: newNodes, edges }))
+      dispatch(pushHistory({ flowId: flow.id, nodes: newNodes, edges }))
 
       setShowNodeSearch(false)
     },
-    [nodes, edges, dispatch, flow._id, setNodes],
+    [nodes, edges, dispatch, flow.id, setNodes],
   )
 
   const handleUndo = useCallback(() => {
@@ -251,7 +251,7 @@ export default function FlowEditor({ flow }) {
   const handleSaveFlow = useCallback(() => {
     setSaveStatus("saving")
     console.log("API Logic JSON:", JSON.stringify({ nodes, edges }, null, 2))
-    dispatch(updateFlow({ flowId: flow._id, data: { nodes, edges } }))
+    dispatch(updateFlow({ flowId: flow.id, data: { nodes, edges } }))
       .then(() => {
         setSaveStatus("saved")
         setLastSaveTime(new Date().toLocaleTimeString())
@@ -260,7 +260,7 @@ export default function FlowEditor({ flow }) {
       .catch(() => {
         setSaveStatus("idle")
       })
-  }, [dispatch, flow._id, nodes, edges])
+  }, [dispatch, flow.id, nodes, edges])
 
   const handleDeleteSelected = useCallback(() => {
     const selectedNodes = nodes.filter(n => n.selected)
@@ -308,8 +308,8 @@ export default function FlowEditor({ flow }) {
 
     setNodes(newNodes)
     setEdges(newEdges)
-    dispatch(pushHistory({ flowId: flow._id, nodes: newNodes, edges: newEdges }))
-  }, [nodes, edges, dispatch, flow._id, setNodes, setEdges])
+    dispatch(pushHistory({ flowId: flow.id, nodes: newNodes, edges: newEdges }))
+  }, [nodes, edges, dispatch, flow.id, setNodes, setEdges])
 
   const simulateFlowExecution = useCallback(async () => {
     if (!nodes.length) return
@@ -533,7 +533,7 @@ export default function FlowEditor({ flow }) {
 
     setNodes(newNodes)
     setEdges(newEdges)
-    dispatch(pushHistory({ flowId: flow._id, nodes: newNodes, edges: newEdges }))
+    dispatch(pushHistory({ flowId: flow.id, nodes: newNodes, edges: newEdges }))
 
     // Initialize configs
     const initialConfigs = {}
@@ -543,7 +543,7 @@ export default function FlowEditor({ flow }) {
       }
     })
     setNodeConfigs(initialConfigs)
-  }, [dispatch, flow._id, setNodes, setEdges])
+  }, [dispatch, flow.id, setNodes, setEdges])
 
   useEffect(() => {
     const handleKeyDown = (e) => {

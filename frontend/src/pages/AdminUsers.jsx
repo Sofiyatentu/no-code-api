@@ -30,7 +30,7 @@ export default function AdminUsers() {
 
   const confirmBan = async () => {
     if (selectedUser && banReason) {
-      await dispatch(banUser({ userId: selectedUser._id, reason: banReason }))
+      await dispatch(banUser({ userId: selectedUser.id, reason: banReason }))
       setShowBanModal(false)
       setBanReason("")
       dispatch(fetchUsers({ page, search }))
@@ -86,7 +86,7 @@ export default function AdminUsers() {
                   </thead>
                   <tbody>
                     {userList.map((user) => (
-                      <tr key={user._id} className="border-b border-slate-800 hover:bg-slate-800">
+                      <tr key={user.id} className="border-b border-slate-800 hover:bg-slate-800">
                         <td className="py-3 px-4 text-white">{user.email}</td>
                         <td className="py-3 px-4 text-slate-400">{user.username}</td>
                         <td className="py-3 px-4">
@@ -102,10 +102,10 @@ export default function AdminUsers() {
                             {user.status}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-400">{new Date(user.createdAt).toLocaleDateString()}</td>
+                        <td className="py-3 px-4 text-slate-400">{new Date(user.created_at).toLocaleDateString()}</td>
                         <td className="py-3 px-4 flex gap-2">
                           <Button
-                            onClick={() => navigate(`/admin/users/${user._id}`)}
+                            onClick={() => navigate(`/admin/users/${user.id}`)}
                             className="bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-1 text-sm"
                           >
                             View
@@ -119,7 +119,7 @@ export default function AdminUsers() {
                             </Button>
                           ) : (
                             <Button
-                              onClick={() => handleUnban(user._id)}
+                              onClick={() => handleUnban(user.id)}
                               className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 text-sm"
                             >
                               Unban

@@ -42,7 +42,7 @@ export default function Logs() {
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log._id} className="border-b border-slate-800 hover:bg-slate-900">
+                  <tr key={log.id} className="border-b border-slate-800 hover:bg-slate-900">
                     <td className="px-4 py-2 text-sm">{new Date(log.timestamp).toLocaleString()}</td>
                     <td className="px-4 py-2 text-sm font-mono">{log.method}</td>
                     <td className="px-4 py-2 text-sm font-mono text-cyan-400">{log.path}</td>
