@@ -25,6 +25,8 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // NeonDB Connection Test (optional - non-blocking)
+
+async function initDb() {
 try {
   const result = await sql`SELECT NOW() as current_time`;
   console.log("✅ NeonDB connected successfully at", result[0].current_time);
@@ -32,6 +34,8 @@ try {
   console.warn("⚠️  NeonDB connection failed (optional):", err.message);
   // Continue running with MongoDB - NeonDB is optional
 }
+}
+
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -52,6 +56,8 @@ app.get("/health", (req, res) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Backend server running on port ${PORT}`);
-});
+initDb().then(() => {
+  app.listen(process.env.PORT, () => {
+    console.log(`Auth service is running on http://localhost:5000`)
+  })
+})
