@@ -24,13 +24,13 @@ app.use(
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// NeonDB Connection Test
+// NeonDB Connection Test (optional - non-blocking)
 try {
   const result = await sql`SELECT NOW() as current_time`;
   console.log("✅ NeonDB connected successfully at", result[0].current_time);
 } catch (err) {
-  console.error("❌ NeonDB connection error:", err);
-  process.exit(1);
+  console.warn("⚠️  NeonDB connection failed (optional):", err.message);
+  // Continue running with MongoDB - NeonDB is optional
 }
 
 // Routes
