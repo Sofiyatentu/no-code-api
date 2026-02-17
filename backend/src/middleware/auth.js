@@ -28,15 +28,19 @@ export const apiKeyAuth = async (req, res, next) => {
     }
 
     // Validate API key against database
-    const { ApiKey } = await import("../services/auth/models.js")
-    const keyDoc = await ApiKey.findOne({ key: apiKey, active: true })
+    const { query } = await import("../config/db.js")
+    const result = await query(
+      "SELECT user_id, project_id FROM api_keys WHERE key = $1 AND active = true",
+      [apiKey]
+    )
 
-    if (!keyDoc) {
+    if (result.rows.length === 0) {
       return res.status(401).json({ error: "Invalid API key" })
     }
 
-    req.userId = keyDoc.userId
-    req.projectId = keyDoc.projectId
+    const keyDoc = result.rows[0]
+    req.userId = keyDoc.user_id
+    req.projectId = keyDoc.project_id
     next()
   } catch (err) {
     next(err)

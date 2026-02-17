@@ -86,7 +86,7 @@ const flowsSlice = createSlice({
   reducers: {
     setCurrentFlow: (state, action) => {
       state.currentFlow = action.payload
-      localStorage.setItem('currentFlowId', action.payload._id)
+      localStorage.setItem('currentFlowId', action.payload.id)
     },
     updateFlowNodes: (state, action) => {
       if (state.currentFlow) {
@@ -111,7 +111,7 @@ const flowsSlice = createSlice({
       })
       .addCase(fetchFlow.fulfilled, (state, action) => {
         const flow = action.payload
-        const index = state.flows.findIndex((f) => f._id === flow._id)
+        const index = state.flows.findIndex((f) => f.id === flow.id)
         if (index !== -1) {
           state.flows[index] = flow
         }
@@ -125,21 +125,21 @@ const flowsSlice = createSlice({
         state.flows.push(action.payload)
       })
       .addCase(updateFlow.fulfilled, (state, action) => {
-        const index = state.flows.findIndex((f) => f._id === action.payload._id)
+        const index = state.flows.findIndex((f) => f.id === action.payload.id)
         if (index !== -1) {
           state.flows[index] = action.payload
         }
-        if (state.currentFlow?._id === action.payload._id) {
+        if (state.currentFlow?.id === action.payload.id) {
           state.currentFlow = action.payload
         }
       })
       .addCase(deployFlow.fulfilled, (state, action) => {
         const flow = action.payload.flow
-        const index = state.flows.findIndex((f) => f._id === flow._id)
+        const index = state.flows.findIndex((f) => f.id === flow.id)
         if (index !== -1) {
           state.flows[index] = flow
         }
-        if (state.currentFlow?._id === flow._id) {
+        if (state.currentFlow?.id === flow.id) {
           state.currentFlow = flow
         }
       })

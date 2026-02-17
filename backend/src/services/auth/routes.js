@@ -1,8 +1,7 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { User, ApiKey } from "./models.js";
-import { Admin } from "../admin/models.js";
+import { query } from "../../config/db.js";
 import { authenticate, asyncHandler } from "../../middleware/auth.js";
 
 const router = express.Router();
@@ -18,53 +17,55 @@ router.post(
       console.log("BODY RECEIVED:", req.body);
 
       if (!email || !username || !password) {
-        return res.status(400).json({ error: "Email, username, and password are required" });
+        return res
+          .status(400)
+          .json({ error: "Email, username, and password are required" });
       }
 
-      const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-      if (existingUser) {
+      // Check if user exists
+      const existingUserResult = await query(
+        "SELECT * FROM users WHERE email = $1 OR username = $2",
+        [email, username],
+      );
+      if (existingUserResult.rows.length > 0) {
         return res.status(400).json({ error: "User already exists" });
       }
 
-      const user = new User({
-        email,
-        username,
-        password,
-        firstName,
-        lastName,
-      });
+      // Hash password
+      const bcrypt = await import("bcryptjs");
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
 
-      try {
-        await user.save();
-      } catch (saveErr) {
-        console.error("USER SAVE ERROR:", saveErr);
-        return res.status(500).json({
-          error: "Failed to create user",
-          details: saveErr.message,
-        });
-      }
+      // Insert user
+      const insertResult = await query(
+        `INSERT INTO users (email, username, password, first_name, last_name) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [email, username, hashedPassword, firstName, lastName],
+      );
+      const user = insertResult.rows[0];
 
       const token = jwt.sign(
-        { userId: user._id, email: user.email, username: user.username },
+        { userId: user.id, email: user.email, username: user.username },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRE }
+        { expiresIn: process.env.JWT_EXPIRE },
       );
 
       return res.status(201).json({
         token,
         user: {
-          id: user._id,
+          id: user.id,
           email: user.email,
           username: user.username,
-          firstName: user.firstName,
-          lastName: user.lastName,
+          firstName: user.first_name,
+          lastName: user.last_name,
         },
       });
     } catch (err) {
       console.error("SIGNUP GENERAL ERROR:", err);
-      return res.status(500).json({ error: "Signup failed", details: err.message });
+      return res
+        .status(500)
+        .json({ error: "Signup failed", details: err.message });
     }
-  })
+  }),
 );
 
 /* ============================
@@ -80,40 +81,53 @@ router.post(
         return res.status(400).json({ error: "Email and password required" });
       }
 
-      const user = await User.findOne({ email });
-      if (!user) {
+      // Find user by email
+      const userResult = await query("SELECT * FROM users WHERE email = $1", [
+        email,
+      ]);
+      if (userResult.rows.length === 0) {
         return res.status(400).json({ error: "Invalid credentials" });
       }
+      const user = userResult.rows[0];
 
-      const isMatch = await user.comparePassword(password);
+      // Compare password
+      const bcrypt = await import("bcryptjs");
+      const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return res.status(400).json({ error: "Invalid credentials" });
       }
 
-      const token = jwt.sign(
-        { userId: user._id, email: user.email, username: user.username },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRE }
+      // Check if user is admin
+      const adminResult = await query(
+        "SELECT role FROM admins WHERE user_id = $1 AND is_active = true",
+        [user.id]
       );
+      const admin = adminResult.rows.length > 0 ? adminResult.rows[0] : null;
 
-      const admin = await Admin.findOne({ userId: user._id });
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, username: user.username },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRE },
+      );
 
       return res.json({
         token,
         user: {
-          id: user._id,
+          id: user.id,
           email: user.email,
           username: user.username,
-          firstName: user.firstName,
-          lastName: user.lastName,
+          firstName: user.first_name,
+          lastName: user.last_name,
           role: admin?.role || "user",
         },
       });
     } catch (err) {
       console.error("LOGIN ERROR:", err);
-      return res.status(500).json({ error: "Login failed", details: err.message });
+      return res
+        .status(500)
+        .json({ error: "Login failed", details: err.message });
     }
-  })
+  }),
 );
 
 /* ============================
@@ -124,22 +138,35 @@ router.get(
   authenticate,
   asyncHandler(async (req, res) => {
     try {
-      const user = await User.findById(req.userId);
-      const admin = await Admin.findOne({ userId: req.userId });
+      const userResult = await query("SELECT * FROM users WHERE id = $1", [
+        req.userId,
+      ]);
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const user = userResult.rows[0];
+
+      const adminResult = await query(
+        "SELECT role FROM admins WHERE user_id = $1 AND is_active = true",
+        [req.userId]
+      );
+      const admin = adminResult.rows.length > 0 ? adminResult.rows[0] : null;
 
       return res.json({
-        id: user._id,
+        id: user.id,
         email: user.email,
         username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.first_name,
+        lastName: user.last_name,
         role: admin?.role || "user",
       });
     } catch (err) {
       console.error("ME ERROR:", err);
-      return res.status(500).json({ error: "Failed to fetch user", details: err.message });
+      return res
+        .status(500)
+        .json({ error: "Failed to fetch user", details: err.message });
     }
-  })
+  }),
 );
 
 /* ============================
@@ -153,26 +180,26 @@ router.post(
       const { name, projectId } = req.body;
       const key = crypto.randomBytes(32).toString("hex");
 
-      const apiKey = new ApiKey({
-        userId: req.userId,
-        projectId,
-        name,
-        key,
-      });
-
-      await apiKey.save();
+      const insertResult = await query(
+        `INSERT INTO api_keys (user_id, project_id, name, key) 
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [req.userId, projectId || null, name, key]
+      );
+      const apiKey = insertResult.rows[0];
 
       return res.status(201).json({
-        id: apiKey._id,
+        id: apiKey.id,
         name: apiKey.name,
-        key,
-        createdAt: apiKey.createdAt,
+        key: apiKey.key,
+        createdAt: apiKey.created_at,
       });
     } catch (err) {
       console.error("API KEY CREATE ERROR:", err);
-      return res.status(500).json({ error: "Failed to create API key", details: err.message });
+      return res
+        .status(500)
+        .json({ error: "Failed to create API key", details: err.message });
     }
-  })
+  }),
 );
 
 /* ============================
@@ -183,13 +210,18 @@ router.get(
   authenticate,
   asyncHandler(async (req, res) => {
     try {
-      const keys = await ApiKey.find({ userId: req.userId });
-      return res.json(keys);
+      const result = await query(
+        "SELECT id, user_id, project_id, name, key, active, created_at FROM api_keys WHERE user_id = $1",
+        [req.userId]
+      );
+      return res.json(result.rows);
     } catch (err) {
       console.error("LIST API KEYS ERROR:", err);
-      return res.status(500).json({ error: "Failed to fetch API keys", details: err.message });
+      return res
+        .status(500)
+        .json({ error: "Failed to fetch API keys", details: err.message });
     }
-  })
+  }),
 );
 
 /* ============================
@@ -200,22 +232,23 @@ router.delete(
   authenticate,
   asyncHandler(async (req, res) => {
     try {
-      const key = await ApiKey.findOneAndUpdate(
-        { _id: req.params.keyId, userId: req.userId },
-        { active: false },
-        { new: true }
+      const result = await query(
+        "UPDATE api_keys SET active = false WHERE id = $1 AND user_id = $2 RETURNING *",
+        [req.params.keyId, req.userId]
       );
 
-      if (!key) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ error: "API key not found" });
       }
 
       return res.json({ message: "API key revoked" });
     } catch (err) {
       console.error("REVOKE API KEY ERROR:", err);
-      return res.status(500).json({ error: "Failed to revoke API key", details: err.message });
+      return res
+        .status(500)
+        .json({ error: "Failed to revoke API key", details: err.message });
     }
-  })
+  }),
 );
 
 export default router;

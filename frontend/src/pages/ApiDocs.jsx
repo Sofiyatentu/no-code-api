@@ -36,7 +36,7 @@ export default function ApiDocs() {
         ) : (
           <div className="space-y-6">
             {deployedFlows.map((flow) => (
-              <div key={flow._id} className="bg-slate-900 rounded-lg border border-slate-800 p-6">
+              <div key={flow.id} className="bg-slate-900 rounded-lg border border-slate-800 p-6">
                 <h3 className="text-lg font-bold mb-2">{flow.name}</h3>
                 <p className="text-slate-400 text-sm mb-4">{flow.description || "No description"}</p>
                 <div className="bg-slate-800 rounded p-3 font-mono text-sm mb-4">

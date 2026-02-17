@@ -1,7 +1,6 @@
 // runtime/flowEngine.js
 import vm from "vm"
 import { performance } from "perf_hooks"
-import mongoose from "mongoose"
 
 // === SECURITY & PERFORMANCE CONFIG ===
 const MAX_EXECUTION_TIME_MS = 5000 // 5s max per flow

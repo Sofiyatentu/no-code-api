@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken"
-import { Admin } from "../services/admin/models.js"
+import { query } from "../config/db.js"
 
 export const adminAuthenticate = async (req, res, next) => {
   try {
@@ -11,12 +11,15 @@ export const adminAuthenticate = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
     req.userId = decoded.userId
 
-    const admin = await Admin.findOne({ userId: decoded.userId, isActive: true })
-    if (!admin) {
+    const result = await query(
+      "SELECT id, user_id, role, permissions, is_active FROM admins WHERE user_id = $1 AND is_active = true",
+      [decoded.userId]
+    )
+    if (result.rows.length === 0) {
       return res.status(403).json({ error: "Not authorized as admin" })
     }
 
-    req.admin = admin
+    req.admin = result.rows[0]
     next()
   } catch (error) {
     res.status(401).json({ error: "Invalid token" })

@@ -1,27 +1,39 @@
-import { User, UserStatus, RateLimitConfig } from "./models.js"
-import { Project } from "../projects/models.js"
-import { Flow } from "../flows/models.js"
-import { Log } from "../logs/models.js"
+import { query } from "../../config/db.js"
 
 // Get comprehensive user profile
 export const getUserProfile = async (userId) => {
   try {
-    const user = await User.findById(userId).select("-password")
-    const status = await UserStatus.findOne({ userId })
-    const rateLimits = await RateLimitConfig.findOne({ userId })
-    const projects = await Project.find({ userId })
-    const flows = await Flow.find({ userId })
-    const requestCount = await Log.countDocuments({ userId })
+    const userResult = await query(
+      "SELECT id, email, username, first_name, last_name, created_at, updated_at FROM users WHERE id = $1",
+      [userId]
+    )
+    if (userResult.rows.length === 0) throw new Error("User not found")
+    const user = userResult.rows[0]
+
+    const statusResult = await query("SELECT status FROM user_statuses WHERE user_id = $1", [userId])
+    const status = statusResult.rows[0]?.status || "active"
+
+    const rateLimitsResult = await query("SELECT * FROM rate_limit_configs WHERE user_id = $1", [userId])
+    const rateLimits = rateLimitsResult.rows[0] || null
+
+    const projectsResult = await query("SELECT COUNT(*) FROM projects WHERE user_id = $1", [userId])
+    const totalProjects = Number(projectsResult.rows[0].count)
+
+    const flowsResult = await query("SELECT COUNT(*) FROM flows WHERE user_id = $1", [userId])
+    const totalFlows = Number(flowsResult.rows[0].count)
+
+    const requestsResult = await query("SELECT COUNT(*) FROM logs WHERE user_id = $1", [userId])
+    const totalRequests = Number(requestsResult.rows[0].count)
 
     return {
       user,
-      status: status?.status || "active",
+      status,
       tier: rateLimits?.tier || "free",
       stats: {
-        totalProjects: projects.length,
-        totalFlows: flows.length,
-        totalRequests: requestCount,
-        accountAge: Math.floor((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24)) + " days",
+        totalProjects,
+        totalFlows,
+        totalRequests,
+        accountAge: Math.floor((Date.now() - new Date(user.created_at)) / (1000 * 60 * 60 * 24)) + " days",
       },
       rateLimits,
     }
@@ -33,8 +45,11 @@ export const getUserProfile = async (userId) => {
 // Get user activity history
 export const getUserActivityHistory = async (userId, limit = 50) => {
   try {
-    const logs = await Log.find({ userId }).sort({ timestamp: -1 }).limit(limit)
-    return logs
+    const logsResult = await query(
+      "SELECT * FROM logs WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2",
+      [userId, limit]
+    )
+    return logsResult.rows
   } catch (error) {
     throw error
   }
@@ -125,15 +140,32 @@ export const calculateUserUsage = async (userId, startDate, endDate) => {
 // Update user quota
 export const updateUserQuota = async (userId, quotaData) => {
   try {
-    const config = await RateLimitConfig.findOneAndUpdate(
-      { userId },
-      {
-        ...quotaData,
-        updatedAt: new Date(),
-      },
-      { upsert: true, new: true },
+    const checkResult = await query(
+      "SELECT id FROM rate_limit_configs WHERE user_id = $1",
+      [userId]
     )
-    return config
+    
+    let result
+    if (checkResult.rows.length > 0) {
+      result = await query(
+        `UPDATE rate_limit_configs 
+         SET requests_per_minute = COALESCE($1, requests_per_minute),
+             requests_per_hour = COALESCE($2, requests_per_hour),
+             requests_per_day = COALESCE($3, requests_per_day),
+             tier = COALESCE($4, tier)
+         WHERE user_id = $5 RETURNING *`,
+        [quotaData.requests_per_minute, quotaData.requests_per_hour, 
+         quotaData.requests_per_day, quotaData.tier, userId]
+      )
+    } else {
+      result = await query(
+        `INSERT INTO rate_limit_configs (user_id, requests_per_minute, requests_per_hour, requests_per_day, tier)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [userId, quotaData.requests_per_minute || 60, quotaData.requests_per_hour || 1000,
+         quotaData.requests_per_day || 10000, quotaData.tier || 'free']
+      )
+    }
+    return result.rows[0]
   } catch (error) {
     throw error
   }

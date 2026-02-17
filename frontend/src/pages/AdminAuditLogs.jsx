@@ -82,9 +82,9 @@ export default function AdminAuditLogs() {
                   </thead>
                   <tbody>
                     {logs.map((log) => (
-                      <tr key={log._id} className="border-b border-slate-800 hover:bg-slate-800">
+                      <tr key={log.id} className="border-b border-slate-800 hover:bg-slate-800">
                         <td className="py-3 px-4 text-slate-400">{new Date(log.timestamp).toLocaleString()}</td>
-                        <td className="py-3 px-4 text-white">{log.adminId?.userId || "System"}</td>
+                        <td className="py-3 px-4 text-white">{log.adminId?.user_id || "System"}</td>
                         <td className={`py-3 px-4 font-medium ${actionColors[log.action] || "text-white"}`}>
                           {log.action.replace(/_/g, " ").toUpperCase()}
                         </td>

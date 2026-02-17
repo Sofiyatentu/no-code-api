@@ -215,7 +215,7 @@ export default function AdminUserDetail() {
                     </thead>
                     <tbody>
                       {projects.map((project) => (
-                        <tr key={project._id} className="border-b border-slate-800 hover:bg-slate-800">
+                        <tr key={project.id} className="border-b border-slate-800 hover:bg-slate-800">
                           <td className="py-3 px-4 text-white">{project.name}</td>
                           <td className="py-3 px-4 text-slate-400">{project.flowCount}</td>
                           <td className="py-3 px-4 text-emerald-400">{project.deployedFlows}</td>
@@ -252,7 +252,7 @@ export default function AdminUserDetail() {
                     </thead>
                     <tbody>
                       {flows.map((flow) => (
-                        <tr key={flow._id} className="border-b border-slate-800 hover:bg-slate-800">
+                        <tr key={flow.id} className="border-b border-slate-800 hover:bg-slate-800">
                           <td className="py-3 px-4 text-white">{flow.name}</td>
                           <td className="py-3 px-4">
                             <span

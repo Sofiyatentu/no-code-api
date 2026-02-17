@@ -20,7 +20,7 @@ export default function Builder() {
   const { flows, currentFlow, loading } = useSelector((state) => state.flows)
 
   // State for open tabs and active tab
-  const [openTabs, setOpenTabs] = useState([]) // [{ _id, name }]
+  const [openTabs, setOpenTabs] = useState([]) // [{ id, name }]
   const [activeTabId, setActiveTabId] = useState(null)
 
   // Sidebar states
@@ -55,32 +55,32 @@ export default function Builder() {
   // Open a flow in a tab
   const openFlowTab = async (flow) => {
     // If already open, just activate
-    if (openTabs.some((tab) => tab._id === flow._id)) {
-      setActiveTabId(flow._id)
+    if (openTabs.some((tab) => tab.id === flow.id)) {
+      setActiveTabId(flow.id)
       dispatch(setCurrentFlow(flow))
       return
     }
 
     // Fetch full flow data if not already loaded
     if (!flow.nodes) {
-      const result = await dispatch(fetchFlow(flow._id))
+      const result = await dispatch(fetchFlow(flow.id))
       if (fetchFlow.fulfilled.match(result)) {
         flow = result.payload
       }
     }
 
     // Add to tabs
-    setOpenTabs((prev) => [...prev, { _id: flow._id, name: flow.name }])
-    setActiveTabId(flow._id)
+    setOpenTabs((prev) => [...prev, { id: flow.id, name: flow.name }])
+    setActiveTabId(flow.id)
     dispatch(setCurrentFlow(flow))
   }
 
   const closeTab = (tabId, e) => {
     e.stopPropagation()
     setOpenTabs((prev) => {
-      const filtered = prev.filter((tab) => tab._id !== tabId)
+      const filtered = prev.filter((tab) => tab.id !== tabId)
       if (activeTabId === tabId && filtered.length > 0) {
-        setActiveTabId(filtered[filtered.length - 1]._id)
+        setActiveTabId(filtered[filtered.length - 1].id)
       } else if (filtered.length === 0) {
         setActiveTabId(null)
         dispatch(setCurrentFlow(null))
@@ -105,7 +105,7 @@ export default function Builder() {
 
   const handleDeploy = () => {
     if (currentFlow) {
-      dispatch(deployFlow(currentFlow._id))
+      dispatch(deployFlow(currentFlow.id))
     }
   }
 
@@ -147,14 +147,14 @@ export default function Builder() {
       {openTabs.length > 0 && (
         <div className="border-b border-slate-800 bg-slate-900 flex items-center overflow-x-auto">
           {openTabs.map((tab) => {
-            const flow = flows.find((f) => f._id === tab._id) || currentFlow
-            const isActive = activeTabId === tab._id
+            const flow = flows.find((f) => f.id === tab.id) || currentFlow
+            const isActive = activeTabId === tab.id
 
             return (
               <div
-                key={tab._id}
+                key={tab.id}
                 onClick={() => {
-                  setActiveTabId(tab._id)
+                  setActiveTabId(tab.id)
                   dispatch(setCurrentFlow(flow))
                 }}
                 className={`flex items-center gap-2 px-4 py-3 border-r border-slate-800 cursor-pointer transition-all min-w-fit ${isActive
@@ -164,7 +164,7 @@ export default function Builder() {
               >
                 <span className="text-sm font-medium">{tab.name}</span>
                 <button
-                  onClick={(e) => closeTab(tab._id, e)}
+                  onClick={(e) => closeTab(tab.id, e)}
                   className="p-1 hover:bg-slate-700 rounded transition"
                 >
                   <X size={14} />
@@ -199,9 +199,9 @@ export default function Builder() {
                 <div className="space-y-2">
                   {flows.map((flow) => (
                     <button
-                      key={flow._id}
+                      key={flow.id}
                       onClick={() => openFlowTab(flow)}
-                      className={`w-full text-left px-4 py-2 rounded transition text-sm ${openTabs.some((t) => t._id === flow._id)
+                      className={`w-full text-left px-4 py-2 rounded transition text-sm ${openTabs.some((t) => t.id === flow.id)
                           ? "bg-emerald-900/50 border border-emerald-700"
                           : "bg-slate-800 hover:bg-slate-700"
                         }`}
@@ -220,7 +220,7 @@ export default function Builder() {
 
         {/* Main Editor Area - Renders Active Tab */}
         <main className="flex-1 bg-slate-950 relative">
-          {activeTabId && currentFlow?._id === activeTabId ? (
+          {activeTabId && currentFlow?.id === activeTabId ? (
             <ReactFlowProvider>
               <FlowEditor flow={currentFlow} />
             </ReactFlowProvider>
