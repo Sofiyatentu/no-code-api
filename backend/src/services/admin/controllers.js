@@ -1,8 +1,8 @@
-import db from "../../config/db.js";
+import { query } from "../../config/db.js";
 
 // Create admin user
 export async function createAdmin(userId, role, permissions) {
-  const result = await db.query(
+  const result = await query(
     `INSERT INTO admins (user_id, role, permissions) VALUES ($1, $2, $3) RETURNING *`,
     [userId, role, JSON.stringify(permissions)],
   );
@@ -11,7 +11,7 @@ export async function createAdmin(userId, role, permissions) {
 
 // Get admin by user ID
 export async function getAdminByUserId(userId) {
-  const result = await db.query(`SELECT * FROM admins WHERE user_id = $1`, [
+  const result = await query(`SELECT * FROM admins WHERE user_id = $1`, [
     userId,
   ]);
   return result.rows[0];
@@ -19,7 +19,7 @@ export async function getAdminByUserId(userId) {
 
 // Update admin permissions
 export async function updateAdminPermissions(adminId, permissions) {
-  const result = await db.query(
+  const result = await query(
     `UPDATE admins SET permissions = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
     [JSON.stringify(permissions), adminId],
   );
@@ -49,11 +49,11 @@ export async function getAuditLogs({ filter = {}, page = 1, limit = 10 }) {
     idx++;
   }
   const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  const logsResult = await db.query(
+  const logsResult = await query(
     `SELECT * FROM audit_logs ${whereClause} ORDER BY timestamp DESC LIMIT $${idx} OFFSET $${idx + 1}`,
     params.concat([limit, skip]),
   );
-  const countResult = await db.query(
+  const countResult = await query(
     `SELECT COUNT(*) FROM audit_logs ${whereClause}`,
     params,
   );

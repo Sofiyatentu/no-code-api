@@ -27,15 +27,14 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // NeonDB Connection Test (optional - non-blocking)
 
 async function initDb() {
-try {
-  const result = await sql`SELECT NOW() as current_time`;
-  console.log("✅ NeonDB connected successfully at", result[0].current_time);
-} catch (err) {
-  console.warn("⚠️  NeonDB connection failed (optional):", err.message);
-  // Continue running with MongoDB - NeonDB is optional
+  try {
+    const result = await sql`SELECT NOW() as current_time`;
+    console.log("✅ NeonDB connected successfully at", result[0].current_time);
+  } catch (err) {
+    console.warn("⚠️  NeonDB connection failed (optional):", err.message);
+    // Continue running with MongoDB - NeonDB is optional
+  }
 }
-}
-
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -44,8 +43,9 @@ app.use("/api/flows", flowRoutes);
 app.use("/api/logs", logsRoutes);
 app.use("/api/admin", adminRoutes);
 
-// API Gateway (public endpoints)
-app.use("/:username/:projectSlug", apiGatewayRoutes);
+// API Gateway (public endpoints) - capture remaining path with wildcard
+app.use("/:username/:projectSlug/*path", apiGatewayRoutes);
+app.use("/:username/:projectSlug", apiGatewayRoutes); // Also handle root path
 
 // Health check
 app.get("/health", (req, res) => {
@@ -57,7 +57,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 initDb().then(() => {
-  app.listen(process.env.PORT, () => {
-    console.log(`Auth service is running on http://localhost:5000`)
-  })
-})
+  app.listen(PORT, () => {
+    console.log(`API server is running on http://localhost:${PORT}`);
+  });
+});

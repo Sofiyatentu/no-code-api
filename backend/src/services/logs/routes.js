@@ -11,36 +11,44 @@ router.get(
   asyncHandler(async (req, res) => {
     const { limit = 100, skip = 0, status, method } = req.query;
 
-    let query = "SELECT * FROM logs WHERE project_id = $1";
+    let queryStr = "SELECT * FROM logs WHERE project_id = $1";
     const params = [req.params.projectId];
     let idx = 2;
     if (status) {
-      query += ` AND status = $${idx}`;
+      queryStr += ` AND status = $${idx}`;
       params.push(Number.parseInt(status));
       idx++;
     }
     if (method) {
-      query += ` AND method = $${idx}`;
+      queryStr += ` AND method = $${idx}`;
       params.push(method);
       idx++;
     }
-    query += " ORDER BY timestamp DESC LIMIT $" + idx + " OFFSET $" + (idx + 1);
+    queryStr +=
+      " ORDER BY timestamp DESC LIMIT $" + idx + " OFFSET $" + (idx + 1);
     params.push(Number.parseInt(limit), Number.parseInt(skip));
-    const logsResult = await query(query, params);
-    const countResult = await query(
-      "SELECT COUNT(*) FROM logs WHERE project_id = $1" +
-        (status ? " AND status = $2" : "") +
-        (method ? (status ? " AND method = $3" : " AND method = $2") : ""),
-      [req.params.projectId].concat(
-        status ? [Number.parseInt(status)] : [],
-        method ? [method] : [],
-      ),
-    );
+    const logsResult = await query(queryStr, params);
+
+    // Build count query with same filters
+    let countStr = "SELECT COUNT(*) FROM logs WHERE project_id = $1";
+    const countParams = [req.params.projectId];
+    let countIdx = 2;
+    if (status) {
+      countStr += ` AND status = $${countIdx}`;
+      countParams.push(Number.parseInt(status));
+      countIdx++;
+    }
+    if (method) {
+      countStr += ` AND method = $${countIdx}`;
+      countParams.push(method);
+      countIdx++;
+    }
+    const countResult = await query(countStr, countParams);
     res.json({
       logs: logsResult.rows,
       total: Number(countResult.rows[0].count),
-      limit,
-      skip,
+      limit: Number.parseInt(limit),
+      skip: Number.parseInt(skip),
     });
   }),
 );

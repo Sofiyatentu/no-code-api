@@ -1,31 +1,39 @@
-import express from "express"
-import { executeFlow } from "./executor.js"
-import { Flow } from "../flows/models.js"
-import { authenticate, asyncHandler } from "../../middleware/auth.js"
+import express from "express";
+import { executeFlow } from "./executor.js";
+import { query } from "../../config/db.js";
+import { authenticate, asyncHandler } from "../../middleware/auth.js";
 
-const router = express.Router()
+const router = express.Router();
 
 // Execute flow endpoint (internal use)
 router.post(
   "/execute/:flowId",
   authenticate,
   asyncHandler(async (req, res) => {
-    const flow = await Flow.findById(req.params.flowId)
-    if (!flow) {
-      return res.status(404).json({ error: "Flow not found" })
+    const flowResult = await query(
+      "SELECT * FROM flows WHERE id = $1 AND user_id = $2",
+      [req.params.flowId, req.userId],
+    );
+    if (flowResult.rows.length === 0) {
+      return res.status(404).json({ error: "Flow not found" });
     }
 
-    const result = await executeFlow(flow, {
-      method: req.method,
-      path: req.path,
-      headers: req.headers,
-      body: req.body,
-      params: req.params,
-      query: req.query,
-    })
+    const flow = flowResult.rows[0];
 
-    res.status(result.status).json(result.body)
+    const result = await executeFlow(
+      { nodes: flow.nodes, edges: flow.edges },
+      {
+        method: req.method,
+        path: req.path,
+        headers: req.headers,
+        body: req.body,
+        params: req.params,
+        query: req.query,
+      },
+    );
+
+    res.status(result.status).json(result.body);
   }),
-)
+);
 
-export default router
+export default router;

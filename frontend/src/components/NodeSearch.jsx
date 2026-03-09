@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useState, useMemo } from "react"
-import { SearchIcon, XIcon } from "./Icons.jsx"
+import { useState, useMemo } from "react";
+import { SearchIcon, XIcon } from "./Icons.jsx";
 
 const NODE_TYPES = {
   httpMethod: {
@@ -9,10 +9,10 @@ const NODE_TYPES = {
     icon: "🌐",
     description: "Define API endpoint",
   },
-  dbNode: {
-    label: "Database",
+  mongodb: {
+    label: "MongoDB",
     icon: "🗄️",
-    description: "MongoDB operations",
+    description: "MongoDB operations (find, insert, update, delete)",
   },
   condition: {
     label: "Condition",
@@ -49,21 +49,23 @@ const NODE_TYPES = {
     icon: "⏱️",
     description: "Add delay",
   },
-}
+};
 
 export default function NodeSearch({ onSelect, onClose }) {
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredNodes = useMemo(() => {
     if (!searchQuery.trim()) {
-      return Object.entries(NODE_TYPES)
+      return Object.entries(NODE_TYPES);
     }
 
-    const query = searchQuery.toLowerCase()
+    const query = searchQuery.toLowerCase();
     return Object.entries(NODE_TYPES).filter(
-      ([_, node]) => node.label.toLowerCase().includes(query) || node.description.toLowerCase().includes(query),
-    )
-  }, [searchQuery])
+      ([_, node]) =>
+        node.label.toLowerCase().includes(query) ||
+        node.description.toLowerCase().includes(query),
+    );
+  }, [searchQuery]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -102,16 +104,20 @@ export default function NodeSearch({ onSelect, onClose }) {
               <button
                 key={key}
                 onClick={() => {
-                  onSelect(key)
-                  onClose()
+                  onSelect(key);
+                  onClose();
                 }}
                 className="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 hover:border-cyan-500 transition text-left"
               >
                 <div className="flex items-start gap-3">
                   <span className="text-xl">{node.icon}</span>
                   <div>
-                    <div className="font-semibold text-white text-sm">{node.label}</div>
-                    <div className="text-xs text-slate-400">{node.description}</div>
+                    <div className="font-semibold text-white text-sm">
+                      {node.label}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {node.description}
+                    </div>
                   </div>
                 </div>
               </button>
@@ -126,10 +132,11 @@ export default function NodeSearch({ onSelect, onClose }) {
         {/* Footer */}
         <div className="mt-4 pt-4 border-t border-slate-700">
           <p className="text-xs text-slate-500">
-            {filteredNodes.length} node{filteredNodes.length !== 1 ? "s" : ""} available
+            {filteredNodes.length} node{filteredNodes.length !== 1 ? "s" : ""}{" "}
+            available
           </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

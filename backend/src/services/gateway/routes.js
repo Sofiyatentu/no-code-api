@@ -3,9 +3,48 @@ import { query } from "../../config/db.js";
 import { executeFlow } from "../runtime/executor.js";
 import { apiKeyAuth } from "../../middleware/auth.js";
 import logger from "../../utils/logger.js";
+import { logRequest } from "../logs/logger.js";
 import { executeUserFlow } from "../flowExecutor.js";
 import { rateLimiter } from "../../middleware/rateLimiter.js";
 const router = express.Router({ mergeParams: true });
+
+// Helper: check if a URL path matches a route pattern (e.g. /users/:id matches /users/123)
+const pathMatches = (pattern, actual) => {
+  const patternParts = pattern.split("/").filter(Boolean);
+  const actualParts = actual.split("/").filter(Boolean);
+
+  if (patternParts.length !== actualParts.length) return false;
+
+  return patternParts.every((part, i) => {
+    if (part.startsWith(":")) return true;
+    return part === actualParts[i];
+  });
+};
+
+// Helper: find the deployed flow that matches the incoming request method + path
+const findMatchingFlow = (flows, method, path) => {
+  for (const flow of flows) {
+    const nodes =
+      typeof flow.nodes === "string" ? JSON.parse(flow.nodes) : flow.nodes;
+    if (!nodes || nodes.length === 0) continue;
+
+    const httpNode = nodes.find(
+      (n) => (n.data?.nodeType || n.type) === "httpMethod",
+    );
+    if (!httpNode) continue;
+
+    const nodeMethod = httpNode.data?.method || httpNode.data?.config?.method;
+    const nodePath = httpNode.data?.path || httpNode.data?.config?.path || "/";
+
+    // Method must match
+    if (nodeMethod && nodeMethod.toUpperCase() !== method.toUpperCase())
+      continue;
+
+    // Path pattern must match
+    if (pathMatches(nodePath, path)) return flow;
+  }
+  return null;
+};
 
 // Apply security middlewares
 router.use(apiKeyAuth); // Validate API key
@@ -13,9 +52,16 @@ router.use(rateLimiter); // 100 req/15min per project
 
 // Main API Gateway Logic
 router.use(async (req, res) => {
-  const { username, projectSlug } = req.params;
-  const pathAfterSlug = req.params[0] || "/";
+  const { username, projectSlug, path: pathParam } = req.params;
+  // In Express 5, wildcard *path params are arrays — join with "/"
+  const pathAfterSlug = Array.isArray(pathParam)
+    ? pathParam.join("/")
+    : pathParam || "";
   const fullPath = `/${pathAfterSlug}`.replace(/\/+/g, "/");
+
+  console.log(
+    `[Gateway] Request: ${req.method} /${username}/${projectSlug}${fullPath}`,
+  );
 
   const startTime = Date.now();
 
@@ -46,34 +92,53 @@ router.use(async (req, res) => {
     }
     const project = projectResult.rows[0];
 
-    // 3. Get active flow for this project
+    // 3. Get ALL deployed flows for this project and match by method + path
     const flowResult = await query(
-      "SELECT * FROM flows WHERE project_id = $1 AND deployed = true ORDER BY deployed_at DESC LIMIT 1",
+      "SELECT * FROM flows WHERE project_id = $1 AND deployed = true ORDER BY deployed_at DESC",
       [project.id],
     );
 
-    if (
-      flowResult.rows.length === 0 ||
-      !flowResult.rows[0].nodes ||
-      flowResult.rows[0].nodes.length === 0
-    ) {
+    if (flowResult.rows.length === 0) {
       return res.status(400).json({
         error: "No flow defined",
         message: "This project has no active API flow",
       });
     }
 
-    const matchingFlow = flowResult.rows[0];
+    const matchingFlow = findMatchingFlow(
+      flowResult.rows,
+      req.method,
+      fullPath,
+    );
 
-    // 4. Execute using USER'S OWN DATABASE
-    const result = await executeUserFlow(project, {
-      method: req.method,
-      path: fullPath,
-      headers: req.headers,
-      body: req.body || {},
-      params: req.params,
-      query: req.query,
-    });
+    if (!matchingFlow) {
+      return res.status(404).json({
+        error: "No matching endpoint",
+        message: `No deployed flow matches ${req.method} ${fullPath}`,
+      });
+    }
+
+    console.log(
+      `[Gateway] Matched flow - ID: ${matchingFlow.id}, Name: ${matchingFlow.name}, Nodes: ${matchingFlow.nodes?.length || 0}`,
+    );
+
+    const result = await executeUserFlow(
+      {
+        ...project,
+        flow: {
+          nodes: matchingFlow.nodes,
+          edges: matchingFlow.edges,
+        },
+      },
+      {
+        method: req.method,
+        path: fullPath,
+        headers: req.headers,
+        body: req.body || {},
+        params: req.params,
+        query: req.query,
+      },
+    );
 
     const duration = Date.now() - startTime;
 
@@ -91,18 +156,18 @@ router.use(async (req, res) => {
     });
 
     // Save to database
-    await query(
-      `INSERT INTO request_logs (project_id, user_id, method, path, status, duration) 
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        project.id,
-        user.id,
-        req.method,
-        fullPath,
-        result.status || 200,
-        duration,
-      ],
-    );
+    await logRequest({
+      projectId: project.id,
+      flowId: matchingFlow.id,
+      userId: user.id,
+      method: req.method,
+      path: fullPath,
+      status: result.status || 200,
+      duration,
+      requestBody: req.body,
+      responseBody: result.body,
+      error: null,
+    });
 
     // 6. Send response
     return res

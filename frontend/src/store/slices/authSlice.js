@@ -1,43 +1,54 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
-import axios from "axios"
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/auth"
+const API_URL = "http://localhost:5000/api/auth";
 
-export const signup = createAsyncThunk("auth/signup", async (credentials, { rejectWithValue }) => {
-  try {
-    const response = await axios.post(`${API_URL}/signup`, credentials)
-    localStorage.setItem("token", response.data.token)
-    return response.data
-  } catch (error) {
-    return rejectWithValue(error.response?.data?.error || "Signup failed")
-  }
-})
+export const signup = createAsyncThunk(
+  "auth/signup",
+  async (credentials, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`${API_URL}/signup`, credentials);
+      localStorage.setItem("token", response.data.token);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.error || "Signup failed");
+    }
+  },
+);
 
-export const login = createAsyncThunk("auth/login", async (credentials, { rejectWithValue }) => {
-  try {
-    const response = await axios.post(`${API_URL}/login`, credentials)
-    localStorage.setItem("token", response.data.token)
-    return response.data
-  } catch (error) {
-    return rejectWithValue(error.response?.data?.error || "Login failed")
-  }
-})
+export const login = createAsyncThunk(
+  "auth/login",
+  async (credentials, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`${API_URL}/login`, credentials);
+      localStorage.setItem("token", response.data.token);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.error || "Login failed");
+    }
+  },
+);
 
-export const fetchCurrentUser = createAsyncThunk("auth/fetchCurrentUser", async (_, { rejectWithValue }) => {
-  try {
-    const token = localStorage.getItem("token")
-    if (!token) return null
+export const fetchCurrentUser = createAsyncThunk(
+  "auth/fetchCurrentUser",
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return null;
 
-    const response = await axios.get(`${API_URL}/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    console.log("Fetched current user:", response.data)
-    return response.data
-  } catch (error) {
-    localStorage.removeItem("token")
-    return rejectWithValue(error.response?.data?.error || "Failed to fetch user")
-  }
-})
+      const response = await axios.get(`${API_URL}/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("Fetched current user:", response.data);
+      return response.data;
+    } catch (error) {
+      localStorage.removeItem("token");
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to fetch user",
+      );
+    }
+  },
+);
 
 const initialState = {
   user: null,
@@ -45,17 +56,17 @@ const initialState = {
   loading: false,
   error: null,
   isAuthenticated: !!localStorage.getItem("token"),
-}
+};
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
     logout: (state) => {
-      state.user = null
-      state.token = null
-      state.isAuthenticated = false
-      localStorage.removeItem("token")
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
+      localStorage.removeItem("token");
     },
   },
   extraReducers: (builder) => {
@@ -99,7 +110,11 @@ const authSlice = createSlice({
       })
 
       // Fetch current user
+      .addCase(fetchCurrentUser.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.loading = false;
         if (!action.payload) {
           state.user = null;
           state.isAuthenticated = false;
@@ -114,9 +129,15 @@ const authSlice = createSlice({
           };
           state.isAuthenticated = true;
         }
+      })
+      .addCase(fetchCurrentUser.rejected, (state) => {
+        state.loading = false;
+        state.user = null;
+        state.token = null;
+        state.isAuthenticated = false;
       });
-  }
-})
+  },
+});
 
-export const { logout } = authSlice.actions
-export default authSlice.reducer
+export const { logout } = authSlice.actions;
+export default authSlice.reducer;

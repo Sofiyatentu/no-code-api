@@ -119,13 +119,11 @@ router.get(
       let params = [];
       let idx = 1;
       if (search) {
-        where.push(`(email ILIKE $${idx} OR username ILIKE $${idx})`);
+        where.push(`(u.email ILIKE $${idx} OR u.username ILIKE $${idx})`);
         params.push(`%${search}%`);
         idx++;
       }
-      const whereClause = where.length
-        ? `WHERE u.${where.join(" AND u.")}`
-        : "";
+      const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
       // Get paginated users with their statuses
       const usersResult = await query(
         `SELECT u.id, u.email, u.username, u.first_name, u.last_name, u.created_at, u.updated_at, COALESCE(us.status, 'active') as status FROM users u LEFT JOIN user_statuses us ON u.id = us.user_id ${whereClause} ORDER BY u.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
@@ -176,7 +174,7 @@ router.get(
       let flowsByProject = {};
       if (projectIds.length > 0) {
         const flowsResult = await query(
-          `SELECT id, name, deployed, deployed_at, project_id FROM flows WHERE project_id = ANY($1::uuid[])`,
+          `SELECT id, name, deployed, deployed_at, project_id FROM flows WHERE project_id = ANY($1::int[])`,
           [projectIds],
         );
         flowsByProject = flowsResult.rows.reduce((acc, flow) => {
@@ -287,7 +285,7 @@ router.post(
       const config = upsertResult.rows[0];
 
       await createAuditLog(
-        req.admin._id,
+        req.admin.id,
         "rate_limit_set",
         "RateLimit",
         config.id,
@@ -334,12 +332,12 @@ router.post(
          ON CONFLICT (key)
          DO UPDATE SET value = $2, description = $3, updated_by = $4, updated_at = NOW()
          RETURNING *`,
-        [key, value, description, req.admin._id],
+        [key, value, description, req.admin.id],
       );
       const config = upsertResult.rows[0];
 
       await createAuditLog(
-        req.admin._id,
+        req.admin.id,
         "system_config_changed",
         "SystemConfig",
         config.id,

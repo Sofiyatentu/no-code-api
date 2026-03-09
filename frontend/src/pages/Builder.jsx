@@ -1,127 +1,130 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useDispatch, useSelector } from "react-redux"
-import { useParams, Link } from "react-router-dom"
-import { ReactFlowProvider } from "reactflow"
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useParams, Link } from "react-router-dom";
+import { ReactFlowProvider } from "reactflow";
 import {
   fetchFlows,
   createFlow,
   deployFlow,
   setCurrentFlow,
   fetchFlow,
-} from "../store/slices/flowsSlice.js"
-import FlowEditor from "../components/FlowEditor.jsx"
-import { ChevronLeft, ChevronRight, Menu, Palette, X } from "lucide-react"
+} from "../store/slices/flowsSlice.js";
+import FlowEditor from "../components/FlowEditor.jsx";
+import { ChevronLeft, ChevronRight, Menu, Palette, X } from "lucide-react";
 
 export default function Builder() {
-  const { projectId } = useParams()
-  const dispatch = useDispatch()
-  const { flows, currentFlow, loading } = useSelector((state) => state.flows)
+  const { projectId } = useParams();
+  const dispatch = useDispatch();
+  const { flows, currentFlow, loading } = useSelector((state) => state.flows);
 
   // State for open tabs and active tab
-  const [openTabs, setOpenTabs] = useState([]) // [{ id, name }]
-  const [activeTabId, setActiveTabId] = useState(null)
+  const [openTabs, setOpenTabs] = useState([]); // [{ id, name }]
+  const [activeTabId, setActiveTabId] = useState(null);
 
   // Sidebar states
-  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
 
   // Load flows
   useEffect(() => {
-    dispatch(fetchFlows(projectId))
-  }, [dispatch, projectId])
+    dispatch(fetchFlows(projectId));
+  }, [dispatch, projectId]);
 
   // Restore open tabs from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem(`flowTabs_${projectId}`)
+    const saved = localStorage.getItem(`flowTabs_${projectId}`);
     if (saved) {
-      const parsed = JSON.parse(saved)
-      setOpenTabs(parsed.tabs || [])
-      setActiveTabId(parsed.activeTabId || null)
+      const parsed = JSON.parse(saved);
+      setOpenTabs(parsed.tabs || []);
+      setActiveTabId(parsed.activeTabId || null);
     }
-  }, [projectId])
+  }, [projectId]);
 
   // Save tabs to localStorage whenever they change
   useEffect(() => {
     if (openTabs.length > 0) {
       localStorage.setItem(
         `flowTabs_${projectId}`,
-        JSON.stringify({ tabs: openTabs, activeTabId })
-      )
+        JSON.stringify({ tabs: openTabs, activeTabId }),
+      );
     }
-  }, [openTabs, activeTabId, projectId])
+  }, [openTabs, activeTabId, projectId]);
 
   // Open a flow in a tab
   const openFlowTab = async (flow) => {
     // If already open, just activate
     if (openTabs.some((tab) => tab.id === flow.id)) {
-      setActiveTabId(flow.id)
-      dispatch(setCurrentFlow(flow))
-      return
+      setActiveTabId(flow.id);
+      dispatch(setCurrentFlow(flow));
+      return;
     }
 
     // Fetch full flow data if not already loaded
     if (!flow.nodes) {
-      const result = await dispatch(fetchFlow(flow.id))
+      const result = await dispatch(fetchFlow(flow.id));
       if (fetchFlow.fulfilled.match(result)) {
-        flow = result.payload
+        flow = result.payload;
       }
     }
 
     // Add to tabs
-    setOpenTabs((prev) => [...prev, { id: flow.id, name: flow.name }])
-    setActiveTabId(flow.id)
-    dispatch(setCurrentFlow(flow))
-  }
+    setOpenTabs((prev) => [...prev, { id: flow.id, name: flow.name }]);
+    setActiveTabId(flow.id);
+    dispatch(setCurrentFlow(flow));
+  };
 
   const closeTab = (tabId, e) => {
-    e.stopPropagation()
+    e.stopPropagation();
     setOpenTabs((prev) => {
-      const filtered = prev.filter((tab) => tab.id !== tabId)
+      const filtered = prev.filter((tab) => tab.id !== tabId);
       if (activeTabId === tabId && filtered.length > 0) {
-        setActiveTabId(filtered[filtered.length - 1].id)
+        setActiveTabId(filtered[filtered.length - 1].id);
       } else if (filtered.length === 0) {
-        setActiveTabId(null)
-        dispatch(setCurrentFlow(null))
+        setActiveTabId(null);
+        dispatch(setCurrentFlow(null));
       }
-      return filtered
-    })
-  }
+      return filtered;
+    });
+  };
 
   const handleCreateFlow = async () => {
-    const name = prompt("Flow name:")
-    if (!name) return
+    const name = prompt("Flow name:");
+    if (!name) return;
 
     const result = await dispatch(
-      createFlow({ projectId, data: { name, description: "" } })
-    )
+      createFlow({ projectId, data: { name, description: "" } }),
+    );
 
     if (createFlow.fulfilled.match(result)) {
-      const newFlow = result.payload
-      openFlowTab(newFlow)
+      const newFlow = result.payload;
+      openFlowTab(newFlow);
     }
-  }
+  };
 
   const handleDeploy = () => {
     if (currentFlow) {
-      dispatch(deployFlow(currentFlow.id))
+      dispatch(deployFlow(currentFlow.id));
     }
-  }
+  };
 
   if (loading && flows.length === 0)
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
         Loading...
       </div>
-    )
+    );
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col">
       {/* Header */}
       <header className="border-b border-slate-800 px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-6">
-          <Link to="/dashboard" className="text-emerald-400 hover:underline text-sm">
+          <Link
+            to="/dashboard"
+            className="text-emerald-400 hover:underline text-sm"
+          >
             ← Dashboard
           </Link>
           <h1 className="text-2xl font-bold">Flow Builder</h1>
@@ -147,20 +150,21 @@ export default function Builder() {
       {openTabs.length > 0 && (
         <div className="border-b border-slate-800 bg-slate-900 flex items-center overflow-x-auto">
           {openTabs.map((tab) => {
-            const flow = flows.find((f) => f.id === tab.id) || currentFlow
-            const isActive = activeTabId === tab.id
+            const flow = flows.find((f) => f.id === tab.id) || currentFlow;
+            const isActive = activeTabId === tab.id;
 
             return (
               <div
                 key={tab.id}
                 onClick={() => {
-                  setActiveTabId(tab.id)
-                  dispatch(setCurrentFlow(flow))
+                  setActiveTabId(tab.id);
+                  dispatch(setCurrentFlow(flow));
                 }}
-                className={`flex items-center gap-2 px-4 py-3 border-r border-slate-800 cursor-pointer transition-all min-w-fit ${isActive
+                className={`flex items-center gap-2 px-4 py-3 border-r border-slate-800 cursor-pointer transition-all min-w-fit ${
+                  isActive
                     ? "bg-slate-950 text-white border-t-2 border-t-emerald-500"
                     : "bg-slate-800 hover:bg-slate-700 text-slate-300"
-                  }`}
+                }`}
               >
                 <span className="text-sm font-medium">{tab.name}</span>
                 <button
@@ -170,7 +174,7 @@ export default function Builder() {
                   <X size={14} />
                 </button>
               </div>
-            )
+            );
           })}
         </div>
       )}
@@ -178,19 +182,30 @@ export default function Builder() {
       <div className="flex flex-1 relative overflow-hidden">
         {/* Left Sidebar - Flows List */}
         <aside
-          className={`absolute md:relative z-20 h-full bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out ${leftSidebarOpen
+          className={`absolute md:relative z-20 h-full bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out ${
+            leftSidebarOpen
               ? "w-64 translate-x-0"
               : "w-0 -translate-x-full md:w-12 md:translate-x-0"
-            }`}
+          }`}
         >
-          <div className={`h-full flex flex-col ${leftSidebarOpen ? "" : "hidden md:flex"}`}>
+          <div
+            className={`h-full flex flex-col ${leftSidebarOpen ? "" : "hidden md:flex"}`}
+          >
             <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-              <h2 className={`font-bold ${leftSidebarOpen ? "block" : "hidden"}`}>Flows</h2>
+              <h2
+                className={`font-bold ${leftSidebarOpen ? "block" : "hidden"}`}
+              >
+                Flows
+              </h2>
               <button
                 onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
                 className="p-2 hover:bg-slate-800 rounded-lg transition"
               >
-                {leftSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+                {leftSidebarOpen ? (
+                  <ChevronLeft size={20} />
+                ) : (
+                  <Menu size={20} />
+                )}
               </button>
             </div>
 
@@ -201,10 +216,11 @@ export default function Builder() {
                     <button
                       key={flow.id}
                       onClick={() => openFlowTab(flow)}
-                      className={`w-full text-left px-4 py-2 rounded transition text-sm ${openTabs.some((t) => t.id === flow.id)
+                      className={`w-full text-left px-4 py-2 rounded transition text-sm ${
+                        openTabs.some((t) => t.id === flow.id)
                           ? "bg-emerald-900/50 border border-emerald-700"
                           : "bg-slate-800 hover:bg-slate-700"
-                        }`}
+                      }`}
                     >
                       <div className="font-medium">{flow.name}</div>
                       <div className="text-xs text-slate-400">
@@ -231,7 +247,9 @@ export default function Builder() {
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <p className="text-slate-400 mb-4">Select or create a flow to start building</p>
+                <p className="text-slate-400 mb-4">
+                  Select or create a flow to start building
+                </p>
                 <button
                   onClick={handleCreateFlow}
                   className="px-6 py-2 rounded bg-emerald-600 hover:bg-emerald-700"
@@ -246,21 +264,30 @@ export default function Builder() {
         {/* Right Sidebar - Node Palette */}
         {currentFlow && (
           <aside
-            className={`absolute md:relative right-0 z-20 h-full bg-slate-900 border-l border-slate-800 transition-all duration-300 ease-in-out ${rightSidebarOpen
+            className={`absolute md:relative right-0 z-20 h-full bg-slate-900 border-l border-slate-800 transition-all duration-300 ease-in-out ${
+              rightSidebarOpen
                 ? "w-80 translate-x-0"
                 : "w-0 translate-x-full md:w-12 md:translate-x-0"
-              }`}
+            }`}
           >
-            <div className={`h-full flex flex-col ${rightSidebarOpen ? "" : "hidden md:flex"}`}>
+            <div
+              className={`h-full flex flex-col ${rightSidebarOpen ? "" : "hidden md:flex"}`}
+            >
               <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-                <h2 className={`font-bold ${rightSidebarOpen ? "block" : "hidden"}`}>
+                <h2
+                  className={`font-bold ${rightSidebarOpen ? "block" : "hidden"}`}
+                >
                   Node Palette
                 </h2>
                 <button
                   onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
                   className="p-2 hover:bg-slate-800 rounded-lg transition"
                 >
-                  {rightSidebarOpen ? <ChevronRight size={20} /> : <Palette size={20} />}
+                  {rightSidebarOpen ? (
+                    <ChevronRight size={20} />
+                  ) : (
+                    <Palette size={20} />
+                  )}
                 </button>
               </div>
 
@@ -269,7 +296,7 @@ export default function Builder() {
                   <div className="space-y-2">
                     {[
                       { display: "HTTP Method", type: "httpMethod" },
-                      { display: "MongoDB", type: "mongoFind" },
+                      { display: "MongoDB", type: "mongodb" },
                       { display: "Condition", type: "condition" },
                       { display: "Try/Catch", type: "tryCatch" },
                       { display: "Response", type: "response" },
@@ -278,8 +305,8 @@ export default function Builder() {
                         key={type}
                         draggable
                         onDragStart={(e) => {
-                          e.dataTransfer.setData("application/reactflow", type)
-                          e.dataTransfer.effectAllowed = "move"
+                          e.dataTransfer.setData("application/reactflow", type);
+                          e.dataTransfer.effectAllowed = "move";
                         }}
                         className="w-full px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-left transition"
                       >
@@ -294,5 +321,5 @@ export default function Builder() {
         )}
       </div>
     </div>
-  )
+  );
 }

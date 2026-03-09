@@ -1,14 +1,15 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useMemo } from "react"
-import { useDispatch, useSelector } from "react-redux"
-import { Link } from "react-router-dom"
+import { useEffect, useState, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 import {
   fetchProjects,
   createProject,
   deleteProject,
-} from "../store/slices/projectsSlice.js"
-import { logout } from "../store/slices/authSlice.js"
+  updateProject,
+} from "../store/slices/projectsSlice.js";
+import { logout } from "../store/slices/authSlice.js";
 import {
   X,
   Plus,
@@ -19,103 +20,117 @@ import {
   AlertCircle,
   Search,
   Filter,
-} from "lucide-react"
+} from "lucide-react";
 
 export default function Dashboard() {
-  const dispatch = useDispatch()
-  const { user } = useSelector((state) => state.auth)
-  const { projects, loading } = useSelector((state) => state.projects)
+  const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
+  const { projects, loading } = useSelector((state) => state.projects);
 
   // UI States
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all") // "", "active", "draft", "archived"
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // "", "active", "draft", "archived"
 
   // Create Modal
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [showMongoUri, setShowMongoUri] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
-  const [formData, setFormData] = useState({ name: "", mongoUri: "", description: "" })
-  const [errors, setErrors] = useState({})
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showMongoUri, setShowMongoUri] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    mongoUri: "",
+    description: "",
+  });
+  const [errors, setErrors] = useState({});
 
   // Delete Modal
-  const [deleteModal, setDeleteModal] = useState(null)
-  const [confirmText, setConfirmText] = useState("")
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    dispatch(fetchProjects())
-  }, [dispatch])
+    dispatch(fetchProjects());
+  }, [dispatch]);
 
   // SEARCH + FILTER
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
       const matchesSearch =
         project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.slug?.toLowerCase().includes(searchQuery.toLowerCase())
+        project.description
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        project.slug?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesStatus = !statusFilter || project.status === statusFilter
+      const matchesStatus = !statusFilter || project.status === statusFilter;
 
-      return matchesSearch && matchesStatus
-    })
-  }, [projects, searchQuery, statusFilter])
+      return matchesSearch && matchesStatus;
+    });
+  }, [projects, searchQuery, statusFilter]);
 
   // CREATE PROJECT
   const validateForm = () => {
-    const newErrors = {}
-    if (!formData.name.trim()) newErrors.name = "Project name is required"
-    if (!formData.mongoUri.trim()) newErrors.mongoUri = "MongoDB URI is required"
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = "Project name is required";
+    if (!formData.mongoUri.trim())
+      newErrors.mongoUri = "MongoDB URI is required";
     else if (!/^mongodb(\+srv)?:\/\//i.test(formData.mongoUri.trim()))
-      newErrors.mongoUri = "Invalid MongoDB URI"
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+      newErrors.mongoUri = "Invalid MongoDB URI";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleCreate = async () => {
-    if (!validateForm() || isCreating) return
-    setIsCreating(true)
+    if (!validateForm() || isCreating) return;
+    setIsCreating(true);
     try {
-      await dispatch(createProject({
-        name: formData.name.trim(),
-        mongoUri: formData.mongoUri.trim(),
-        description: formData.description.trim() || undefined
-      })).unwrap()
-      setIsCreateOpen(false)
-      setFormData({ name: "", mongoUri: "", description: "" })
-      setShowMongoUri(false)
-      setErrors({})
+      await dispatch(
+        createProject({
+          name: formData.name.trim(),
+          slug: formData.name
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, ""),
+          mongoUri: formData.mongoUri.trim(),
+          description: formData.description.trim() || undefined,
+        }),
+      ).unwrap();
+      setIsCreateOpen(false);
+      setFormData({ name: "", mongoUri: "", description: "" });
+      setShowMongoUri(false);
+      setErrors({});
     } catch (err) {
-      console.error(err)
+      console.error(err);
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   // DELETE PROJECT
   const openDeleteModal = (project) => {
-    setDeleteModal({ id: project.id, name: project.name })
-    setConfirmText("")
-  }
+    setDeleteModal({ id: project.id, name: project.name });
+    setConfirmText("");
+  };
 
   const closeDeleteModal = () => {
-    setDeleteModal(null)
-    setConfirmText("")
-  }
+    setDeleteModal(null);
+    setConfirmText("");
+  };
 
   const handleDelete = async () => {
-    if (confirmText !== "DELETE" || isDeleting) return
-    setIsDeleting(true)
+    if (confirmText !== "DELETE" || isDeleting) return;
+    setIsDeleting(true);
     try {
-      await dispatch(deleteProject(deleteModal.id)).unwrap()
-      closeDeleteModal()
+      await dispatch(deleteProject(deleteModal.id)).unwrap();
+      closeDeleteModal();
     } catch (err) {
-      console.error("Delete failed:", err)
+      console.error("Delete failed:", err);
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
-  }
+  };
 
-  const copyUri = () => navigator.clipboard.writeText(formData.mongoUri)
+  const copyUri = () => navigator.clipboard.writeText(formData.mongoUri);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -136,12 +151,17 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-8 py-12">
         {/* Header + Controls */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10">
-          <h2 className="text-3xl font-bold">Your Projects ({filteredProjects.length})</h2>
+          <h2 className="text-3xl font-bold">
+            Your Projects ({filteredProjects.length})
+          </h2>
 
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             {/* Search Bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                size={20}
+              />
               <input
                 type="text"
                 placeholder="Search projects..."
@@ -220,12 +240,13 @@ export default function Dashboard() {
 
                 <div class="flex items-center gap-3 mb-6">
                   <span
-                    class={`px-3 py-1 rounded-full text-xs font-medium ${project.status === "active"
-                      ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700"
-                      : project.status === "draft"
-                        ? "bg-slate-800 text-slate-400"
-                        : "bg-orange-900/50 text-orange-300 border border-orange-700"
-                      }`}
+                    class={`px-3 py-1 rounded-full text-xs font-medium ${
+                      project.status === "active"
+                        ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700"
+                        : project.status === "draft"
+                          ? "bg-slate-800 text-slate-400"
+                          : "bg-orange-900/50 text-orange-300 border border-orange-700"
+                    }`}
                   >
                     {project.status || "draft"}
                   </span>
@@ -234,7 +255,7 @@ export default function Dashboard() {
                   </span>
                 </div>
 
-                <div class="flex gap-3">
+                <div class="flex gap-3 mb-3">
                   <Link
                     to={`/project/${project.id}/builder`}
                     class="flex-1 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-center font-semibold transition"
@@ -248,6 +269,26 @@ export default function Dashboard() {
                     Test
                   </Link>
                 </div>
+                <button
+                  onClick={() =>
+                    dispatch(
+                      updateProject({
+                        projectId: project.id,
+                        data: {
+                          status:
+                            project.status === "active" ? "draft" : "active",
+                        },
+                      }),
+                    )
+                  }
+                  class={`w-full py-2 rounded-lg font-semibold transition ${
+                    project.status === "active"
+                      ? "bg-orange-600 hover:bg-orange-700 text-white"
+                      : "bg-cyan-600 hover:bg-cyan-700 text-white"
+                  }`}
+                >
+                  {project.status === "active" ? "Deactivate" : "Activate"}
+                </button>
               </div>
             ))}
           </div>
@@ -257,15 +298,23 @@ export default function Dashboard() {
       {/* CREATE MODAL */}
       {isCreateOpen && (
         <>
-          <div class="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" onClick={() => setIsCreateOpen(false)} />
+          <div
+            class="fixed inset-0 bg-black/70 backdrop-blur-sm z-40"
+            onClick={() => setIsCreateOpen(false)}
+          />
           <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
               class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-xl max-h-screen overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div class="flex justify-between items-center p-8 border-b border-slate-700">
-                <h2 class="text-3xl font-bold text-emerald-400">Create New Project</h2>
-                <button onClick={() => setIsCreateOpen(false)} class="p-3 hover:bg-slate-800 rounded-xl">
+                <h2 class="text-3xl font-bold text-emerald-400">
+                  Create New Project
+                </h2>
+                <button
+                  onClick={() => setIsCreateOpen(false)}
+                  class="p-3 hover:bg-slate-800 rounded-xl"
+                >
                   <X size={24} />
                 </button>
               </div>
@@ -279,13 +328,18 @@ export default function Dashboard() {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     placeholder="My Awesome API"
-                    class={`w-full px-5 py-4 rounded-xl bg-slate-800 border ${errors.name ? "border-red-500" : "border-slate-600"
-                      } focus:border-emerald-500 focus:outline-none text-lg`}
+                    class={`w-full px-5 py-4 rounded-xl bg-slate-800 border ${
+                      errors.name ? "border-red-500" : "border-slate-600"
+                    } focus:border-emerald-500 focus:outline-none text-lg`}
                     autoFocus
                   />
-                  {errors.name && <p class="text-red-400 text-sm mt-2">{errors.name}</p>}
+                  {errors.name && (
+                    <p class="text-red-400 text-sm mt-2">{errors.name}</p>
+                  )}
                 </div>
 
                 {/* MongoDB URI */}
@@ -297,14 +351,21 @@ export default function Dashboard() {
                     <input
                       type={showMongoUri ? "text" : "password"}
                       value={formData.mongoUri}
-                      onChange={(e) => setFormData({ ...formData, mongoUri: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, mongoUri: e.target.value })
+                      }
                       placeholder="mongodb+srv://..."
-                      class={`w-full px-5 py-4 pr-32 rounded-xl bg-slate-800 border font-mono text-sm ${errors.mongoUri ? "border-red-500" : "border-slate-600"
-                        } focus:border-emerald-500 focus:outline-none`}
+                      class={`w-full px-5 py-4 pr-32 rounded-xl bg-slate-800 border font-mono text-sm ${
+                        errors.mongoUri ? "border-red-500" : "border-slate-600"
+                      } focus:border-emerald-500 focus:outline-none`}
                     />
                     <div class="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
                       {formData.mongoUri && (
-                        <button type="button" onClick={copyUri} class="p-2 hover:bg-slate-700 rounded">
+                        <button
+                          type="button"
+                          onClick={copyUri}
+                          class="p-2 hover:bg-slate-700 rounded"
+                        >
                           <Copy size={18} class="text-slate-400" />
                         </button>
                       )}
@@ -313,19 +374,29 @@ export default function Dashboard() {
                         onClick={() => setShowMongoUri(!showMongoUri)}
                         class="p-2 hover:bg-slate-700 rounded"
                       >
-                        {showMongoUri ? <EyeOff size={18} /> : <Eye size={18} class="text-slate-400" />}
+                        {showMongoUri ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} class="text-slate-400" />
+                        )}
                       </button>
                     </div>
                   </div>
-                  {errors.mongoUri && <p class="text-red-400 text-sm mt-2">{errors.mongoUri}</p>}
+                  {errors.mongoUri && (
+                    <p class="text-red-400 text-sm mt-2">{errors.mongoUri}</p>
+                  )}
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label class="block text-sm font-semibold text-slate-300 mb-2">Description (optional)</label>
+                  <label class="block text-sm font-semibold text-slate-300 mb-2">
+                    Description (optional)
+                  </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                     rows={4}
                     class="w-full px-5 py-4 rounded-xl bg-slate-800 border border-slate-600 focus:border-emerald-500 focus:outline-none resize-none"
                   />
@@ -364,7 +435,10 @@ export default function Dashboard() {
       {/* DELETE CONFIRM MODAL */}
       {deleteModal && (
         <>
-          <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50" onClick={closeDeleteModal} />
+          <div
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+            onClick={closeDeleteModal}
+          />
           <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
               class="bg-slate-900 border border-red-900/50 rounded-2xl shadow-2xl w-full max-w-md"
@@ -377,16 +451,20 @@ export default function Dashboard() {
                 </div>
 
                 <p class="text-slate-300 mb-4">
-                  This action <strong>cannot be undone</strong>. This will permanently delete:
+                  This action <strong>cannot be undone</strong>. This will
+                  permanently delete:
                 </p>
                 <ul class="text-slate-400 text-sm space-y-2 mb-6">
-                  <li>• Project "<strong>{deleteModal.name}</strong>"</li>
+                  <li>
+                    • Project "<strong>{deleteModal.name}</strong>"
+                  </li>
                   <li>• All endpoints and mocks</li>
                   <li>• Request logs and analytics</li>
                 </ul>
 
                 <p class="text-slate-300">
-                  Type <span class="font-bold text-red-400">DELETE</span> to confirm:
+                  Type <span class="font-bold text-red-400">DELETE</span> to
+                  confirm:
                 </p>
                 <input
                   type="text"
@@ -418,5 +496,5 @@ export default function Dashboard() {
         </>
       )}
     </div>
-  )
+  );
 }

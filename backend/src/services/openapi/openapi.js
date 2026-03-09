@@ -1,17 +1,17 @@
 // src/modules/api/routes/openapi.js
-import express from "express"
-import swaggerUi from "swagger-ui-express"
+import express from "express";
+import swaggerUi from "swagger-ui-express";
 
-import { generateOpenAPISpec } from "../utils/openapiGenerator.js"
+import { generateOpenAPISpec } from "../../utils/openapiGenerator.js";
 
-const router = express.Router({ mergeParams: true })
+const router = express.Router({ mergeParams: true });
 
 // Serve Swagger UI
 router.get("/docs", async (req, res) => {
-    const { username, projectSlug } = req.params
-    const spec = await generateOpenAPISpec(username, projectSlug)
+  const { username, projectSlug } = req.params;
+  const spec = await generateOpenAPISpec(username, projectSlug);
 
-    res.send(`
+  res.send(`
     <!DOCTYPE html>
     <html>
       <head>
@@ -36,14 +36,14 @@ router.get("/docs", async (req, res) => {
         </script>
       </body>
     </html>
-  `)
-})
+  `);
+});
 
 // Return raw OpenAPI JSON
 router.get("/openapi.json", async (req, res) => {
-    const { username, projectSlug } = req.params
-    const spec = await generateOpenAPISpec(username, projectSlug)
-    res.json(spec)
-})
+  const { username, projectSlug } = req.params;
+  const spec = await generateOpenAPISpec(username, projectSlug);
+  res.json(spec);
+});
 
-export default router
+export default router;
